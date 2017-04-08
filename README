@@ -1,0 +1,17 @@
+
+NOKI5110 is a simple C library for working with the Nokia 84x48 LCD display
+when connected to the SPI bus.
+The idea is to provide a simple interface for C programmers to make use of 
+those low-cost LCD displays without having to read the data sheet or figure
+out SPI programming. Unfortunately the display controller needs a couple of
+control lines (GPIO pins) for Reset and Data/Command; this requires using
+an external library (wiringPi) to make it work.
+
+To build the library, simply type 'make' in the terminal. To build the sample
+app, type 'make -f make_sample'. This will build the n5110 executable to show
+that the library is working.
+
+Written by Larry Bank
+Project started 4/6/2017
+bitbank@pobox.com
+

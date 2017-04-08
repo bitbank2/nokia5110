@@ -1,0 +1,14 @@
+CFLAGS=-c -Wall -O2
+LIBS= -lwiringPi -lnokia5110 -lm
+
+all: n5110
+
+n5110: main.o
+	$(CC) main.o $(LIBS) -o n5110
+
+main.o: main.c
+	$(CC) $(CFLAGS) main.c
+
+clean:
+	rm -rf *o n5110
+
