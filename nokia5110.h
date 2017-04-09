@@ -16,6 +16,9 @@ void nokiaShutdown(void);
 // Fills the display with the byte pattern
 int nokiaFill(unsigned char ucPattern);
 
+// Turns the backlight on or off
+void nokiaBacklight(int bOn);
+
 // Write a text string to the display at x (column 0-83) and y (row 0-5)
 // bLarge = 0 - 8x8 font, bLarge = 1 - 16x24 font
 int nokiaWriteString(int x, int y, char *szText, int bLarge);

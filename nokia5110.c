@@ -33,9 +33,14 @@ static void RotateFont90(void);
 
 // These are the wiringPi port numbers for the GPIO
 // pins connected to the corresponding LCD controls
+// Sets the Data/Command control
 #define DC_PORT 4
+// Sets the reset line (active low)
 #define RST_PORT 5
+// Sets the chip-enable
 #define CE_PORT 10
+// Sets the LED backlight
+#define LED_PORT 0
  
 typedef enum
 {
@@ -67,13 +72,16 @@ int nokiaInit(int iChannel)
         pinMode(DC_PORT, OUTPUT);
         pinMode(CE_PORT, OUTPUT);
         pinMode(RST_PORT, OUTPUT);
+	pinMode(LED_PORT, OUTPUT);
+
 	// Start by reseting the LCD controller
         digitalWrite(RST_PORT, HIGH);
 	delay(50);
 	digitalWrite(RST_PORT, LOW);
 	delay(5);
 	digitalWrite(RST_PORT, HIGH); // take it out of reset
-	digitalWrite(CE_PORT, LOW);
+	digitalWrite(CE_PORT, LOW); // enable the LCD controller
+	digitalWrite(LED_PORT, HIGH); // turn off the backlight
 
 	nokiaSetMode(MODE_COMMAND);
 	nokiaWriteCommand(0x21); // set advanced commands
@@ -88,6 +96,12 @@ int nokiaInit(int iChannel)
 	return 0;
 
 } /* nokiaInit() */
+
+// Controls the LED backlight
+void nokiaBacklight(int bOn)
+{
+	digitalWrite(LED_PORT, (bOn) ? LOW:HIGH);
+} /* nokiaBacklight() */
 
 // Sends a command to turn off the LCD display
 // Closes the SPI file handle
