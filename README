@@ -1,5 +1,5 @@
 
-NOKI5110 is a simple C library for working with the Nokia 84x48 LCD display
+NOKIA5110 is a simple C library for working with the Nokia 84x48 LCD display
 when connected to the SPI bus.
 The idea is to provide a simple interface for C programmers to make use of 
 those low-cost LCD displays without having to read the data sheet or figure
