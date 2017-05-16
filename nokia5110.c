@@ -21,7 +21,7 @@
 #include <sys/ioctl.h>
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
-#include <nokia5110.h>
+#include "nokia5110.h"
 
 extern unsigned char ucFont[];
 static int iScreenOffset; // current write offset of screen data
