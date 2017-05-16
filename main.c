@@ -13,7 +13,7 @@
 int main(int argc, char* argv[])
 {
 int rc;
-int x, y;
+int i, x, y;
 
 	rc = nokiaInit(0, 22, 11, 13);
 	if (rc != 0)
@@ -36,7 +36,26 @@ int x, y;
 		nokiaSetPixel(0, y, 1);
 		nokiaSetPixel(83, y, 1);
 	}
-	usleep(5000000);
+	usleep(3000000);
+	for (i=0; i<10000; i++)
+	{
+		x = rand() & 0x7f;
+		y = rand() & 0x3f;
+		// cover entire display with black
+		while (nokiaGetPixel(x,y))
+		{
+			x++;
+			if (x >= 84)
+			{
+				y++;
+				x = 0;
+				if (y >= 48)
+					break;
+			}
+		}
+		nokiaSetPixel(x, y, 1);	
+	}
+	usleep(4000000);
 	nokiaShutdown();
 
    return 0;
