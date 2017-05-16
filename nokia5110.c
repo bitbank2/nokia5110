@@ -21,27 +21,24 @@
 #include <sys/ioctl.h>
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
+#include <nokia5110.h>
 
 extern unsigned char ucFont[];
 static int iScreenOffset; // current write offset of screen data
 static unsigned char ucScreen[504]; // local copy of the image buffer
 static int file_spi = 0;
+static int iDCPin, iResetPin, iLEDPin;
 
 static void nokiaWriteCommand(unsigned char);
-static int nokiaFill(unsigned char);
+int nokiaFill(unsigned char);
 static void RotateFont90(void);
 
-// These are the wiringPi port numbers for the GPIO
-// pins connected to the corresponding LCD controls
-// Sets the Data/Command control
-#define DC_PORT 4
-// Sets the reset line (active low)
-#define RST_PORT 5
-// Sets the chip-enable
-#define CE_PORT 10
-// Sets the LED backlight
-#define LED_PORT 0
- 
+//
+// Lookup table to translate header pin numbers into wiringPi GPIO numbers
+// invalid/unusable pins return 0xff
+//
+static unsigned char ucWPPins[] = {0xff,0xff,0xff,8,0xff,9,0xff,7,15,0xff,16,0,1,
+        2,0xff,3,4,0xff,5,12,0xff,13,6,14,10,0xff,11,30,31,21,0xff,22,26,23,0xff,24,27,25,28,0xff,29};
 typedef enum
 {
  MODE_DATA = 0,
@@ -51,14 +48,25 @@ typedef enum
 // Sets the D/C pin to data or command mode
 void nokiaSetMode(int iMode)
 {
-	digitalWrite(DC_PORT, (iMode == MODE_DATA));
+	digitalWrite(iDCPin, (iMode == MODE_DATA));
 } /* nokiaSetMode() */
 
 // Opens a file system handle to the SPI device
 // Initializes the LCD controller into "horizontal write mode"
 // Prepares the font data for the orientation of the display
-int nokiaInit(int iChannel)
+// Parameters: GPIO pin numbers used for the DC/RST/LED control lines
+//
+int nokiaInit(int iChannel, int iDC, int iReset, int iLED)
 {
+
+        iDCPin = ucWPPins[iDC];
+        iResetPin = ucWPPins[iReset];
+        iLEDPin = ucWPPins[iLED];
+        if (iDCPin == 0xff || iResetPin == 0xff || iLEDPin == 0xff) // problem
+        {
+                printf("One or more invalid GPIO pin numbers\n");
+                return -1;
+        }
 
         wiringPiSetup(); // initialize GPIO interface
 	file_spi = wiringPiSPISetup(iChannel, 4000000); // Initialize SPI channel at 4Mhz
@@ -69,19 +77,17 @@ int nokiaInit(int iChannel)
 		return -1;
 	}
 
-        pinMode(DC_PORT, OUTPUT);
-        pinMode(CE_PORT, OUTPUT);
-        pinMode(RST_PORT, OUTPUT);
-	pinMode(LED_PORT, OUTPUT);
+        pinMode(iDCPin, OUTPUT);
+        pinMode(iResetPin, OUTPUT);
+	pinMode(iLEDPin, OUTPUT);
 
 	// Start by reseting the LCD controller
-        digitalWrite(RST_PORT, HIGH);
+        digitalWrite(iResetPin, HIGH);
 	delay(50);
-	digitalWrite(RST_PORT, LOW);
+	digitalWrite(iResetPin, LOW);
 	delay(5);
-	digitalWrite(RST_PORT, HIGH); // take it out of reset
-	digitalWrite(CE_PORT, LOW); // enable the LCD controller
-	digitalWrite(LED_PORT, HIGH); // turn off the backlight
+	digitalWrite(iResetPin, HIGH); // take it out of reset
+	nokiaBacklight(1); // turn on the backlight
 
 	nokiaSetMode(MODE_COMMAND);
 	nokiaWriteCommand(0x21); // set advanced commands
@@ -100,7 +106,7 @@ int nokiaInit(int iChannel)
 // Controls the LED backlight
 void nokiaBacklight(int bOn)
 {
-	digitalWrite(LED_PORT, (bOn) ? LOW:HIGH);
+	digitalWrite(iLEDPin, (bOn) ? LOW:HIGH);
 } /* nokiaBacklight() */
 
 // Sends a command to turn off the LCD display
@@ -110,6 +116,7 @@ void nokiaShutdown()
 	if (file_spi != 0)
 	{
 		nokiaSetMode(MODE_COMMAND);
+		nokiaBacklight(0); // turn off the backlight
 		nokiaWriteCommand(0x24); // power down
 		close(file_spi);
 		file_spi = 0;
@@ -184,6 +191,23 @@ unsigned char uc, ucOld;
 	}
 	return 0;
 } /* nokiaSetPixel() */
+
+//
+// Read the pixel at the given x,y
+// if the library is not initialized, or the coordinates are
+// not within the valid range, it returns 0
+//
+int nokiaGetPixel(int x, int y)
+{
+int i;
+
+   if (file_spi == 0)
+	return 0; // invalid request returns "black" pixel
+   i = ((y >> 3) * 84) + x;
+   if (i < 0 || i > 503) // off the screen
+	return 0;
+   return (ucScreen[i] & (1<< (y & 7)));
+} /* nokiaGetPixel() */
 
 // Draw a string of small (8x8) or large (16x24) characters
 // At the given col+row
