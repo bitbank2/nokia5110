@@ -11,6 +11,17 @@ To build the library, simply type 'make' in the terminal. To build the sample
 app, type 'make -f make_sample'. This will build the n5110 executable to show
 that the library is working.
 
+Troubleshooting tips:
+
+1) Make sure to enable the SPI interface in raspi-config
+2) Connect the "CE" pin of the 5110 to the CE0 or CE1 pin on the RPi header.
+   If connected to CE0, initialize the SPIChannel to 0, if CE1, use ch 1.
+3) You can use any GPIO pins to control the D/C,RST/LED lines; initialize the
+   5110 library with the pin numbers used (not GPIO numbers)
+4) The header pin-to-GPIO conversion table I use only supports RPi boards with
+   40 pin headers. Any older boards (e.g. original RPi-B) will not necessarily
+   work.
+
 Written by Larry Bank
 Project started 4/6/2017
 bitbank@pobox.com
