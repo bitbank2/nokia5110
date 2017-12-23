@@ -15,7 +15,8 @@ int main(int argc, char* argv[])
 int rc;
 int i, x, y;
 
-	rc = nokiaInit(0, 22, 11, 13);
+	// SPI Channel, D/C, RESET, LED
+	rc = nokiaInit(0, 35, 37, 13);
 	if (rc != 0)
 	{
 		printf("Problem initializing nokia5110 library\n");

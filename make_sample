@@ -1,5 +1,5 @@
 CFLAGS=-c -Wall -O2
-LIBS= -lwiringPi -lnokia5110 -lm
+LIBS= -lnokia5110 -larmbianio -lpthread -lm
 
 all: n5110
 
