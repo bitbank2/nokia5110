@@ -19,9 +19,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <wiringPi.h>
-#include <wiringPiSPI.h>
-#include "nokia5110.h"
+#include <nokia5110.h>
+#include <armbianio.h>
 
 extern unsigned char ucFont[];
 static int iScreenOffset; // current write offset of screen data
@@ -29,16 +28,12 @@ static unsigned char ucScreen[504]; // local copy of the image buffer
 static int file_spi = 0;
 static int iDCPin, iResetPin, iLEDPin;
 
+#define LOW 0
+#define HIGH 1
+
 static void nokiaWriteCommand(unsigned char);
 int nokiaFill(unsigned char);
-static void RotateFont90(void);
 
-//
-// Lookup table to translate header pin numbers into wiringPi GPIO numbers
-// invalid/unusable pins return 0xff
-//
-static unsigned char ucWPPins[] = {0xff,0xff,0xff,8,0xff,9,0xff,7,15,0xff,16,0,1,
-        2,0xff,3,4,0xff,5,12,0xff,13,6,14,10,0xff,11,30,31,21,0xff,22,26,23,0xff,24,27,25,28,0xff,29};
 typedef enum
 {
  MODE_DATA = 0,
@@ -48,7 +43,7 @@ typedef enum
 // Sets the D/C pin to data or command mode
 void nokiaSetMode(int iMode)
 {
-	digitalWrite(iDCPin, (iMode == MODE_DATA));
+	AIOWriteGPIO(iDCPin, (iMode == MODE_DATA));
 } /* nokiaSetMode() */
 
 // Opens a file system handle to the SPI device
@@ -59,17 +54,16 @@ void nokiaSetMode(int iMode)
 int nokiaInit(int iChannel, int iDC, int iReset, int iLED)
 {
 
-        iDCPin = ucWPPins[iDC];
-        iResetPin = ucWPPins[iReset];
-        iLEDPin = ucWPPins[iLED];
-        if (iDCPin == 0xff || iResetPin == 0xff || iLEDPin == 0xff) // problem
-        {
-                printf("One or more invalid GPIO pin numbers\n");
-                return -1;
-        }
+        iDCPin = iDC;
+        iResetPin = iReset;
+        iLEDPin = iLED;
 
-        wiringPiSetup(); // initialize GPIO interface
-	file_spi = wiringPiSPISetup(iChannel, 4000000); // Initialize SPI channel at 4Mhz
+        if (!AIOInit())
+	{
+		fprintf(stderr, "Error initializing ArmbianIO library\n");
+		return -1;
+	}
+	file_spi = AIOOpenSPI(iChannel, 4000000); // Initialize SPI channel at 4Mhz
 	if (file_spi == -1)
 	{
 		fprintf(stderr, "Failed to open the SPI bus\n");
@@ -77,28 +71,28 @@ int nokiaInit(int iChannel, int iDC, int iReset, int iLED)
 		return -1;
 	}
 
-        pinMode(iDCPin, OUTPUT);
-        pinMode(iResetPin, OUTPUT);
-	pinMode(iLEDPin, OUTPUT);
+        AIOAddGPIO(iDCPin, GPIO_OUT);
+        AIOAddGPIO(iResetPin, GPIO_OUT);
+	AIOAddGPIO(iLEDPin, GPIO_OUT);
 
 	// Start by reseting the LCD controller
-        digitalWrite(iResetPin, HIGH);
-	delay(50);
-	digitalWrite(iResetPin, LOW);
-	delay(5);
-	digitalWrite(iResetPin, HIGH); // take it out of reset
+        AIOWriteGPIO(iResetPin, HIGH);
+	usleep(50000);
+	AIOWriteGPIO(iResetPin, LOW);
+	usleep(5000);
+	AIOWriteGPIO(iResetPin, HIGH); // take it out of reset
 	nokiaBacklight(1); // turn on the backlight
 
 	nokiaSetMode(MODE_COMMAND);
 	nokiaWriteCommand(0x21); // set advanced commands
 	nokiaWriteCommand(0xa4); // set LCD Vop (contrast)
+	nokiaWriteCommand(0xb2); // set normal contrast
 	nokiaWriteCommand(0x04); // set temperature coefficient
 	nokiaWriteCommand(0x14); // set LCD bias mode 1:40
 	nokiaWriteCommand(0x20); // set simple command mode
 	nokiaWriteCommand(0x0c); // set display mode to normal
 
 	nokiaFill(0); // erase memory
-	RotateFont90(); // fix font orientation for OLED
 	return 0;
 
 } /* nokiaInit() */
@@ -106,7 +100,7 @@ int nokiaInit(int iChannel, int iDC, int iReset, int iLED)
 // Controls the LED backlight
 void nokiaBacklight(int bOn)
 {
-	digitalWrite(iLEDPin, (bOn) ? LOW:HIGH);
+	AIOWriteGPIO(iLEDPin, (bOn) ? LOW:HIGH);
 } /* nokiaBacklight() */
 
 // Sends a command to turn off the LCD display
@@ -118,7 +112,7 @@ void nokiaShutdown()
 		nokiaSetMode(MODE_COMMAND);
 		nokiaBacklight(0); // turn off the backlight
 		nokiaWriteCommand(0x24); // power down
-		close(file_spi);
+		AIOCloseSPI(file_spi);
 		file_spi = 0;
 	}
 }
@@ -129,7 +123,7 @@ unsigned char buf[2];
 
 	nokiaSetMode(MODE_COMMAND);
 	buf[0] = c;
-	write(file_spi, buf, 1);
+	AIOWriteSPI(file_spi, buf, 1);
 } /* nokiaWriteCommand() */
 
 int nokiaSetContrast(unsigned char ucContrast)
@@ -138,7 +132,7 @@ int nokiaSetContrast(unsigned char ucContrast)
                 return -1;
 
 	nokiaWriteCommand(0x21); // set advanced command mode
-	nokiaWriteCommand(0x80 | ucContrast); // set contrast
+	nokiaWriteCommand(0xB0 | ucContrast); // set contrast
 	nokiaWriteCommand(0x20); // set simple command mode
 	return 0;
 } /* nokiaSetContrast() */
@@ -158,7 +152,7 @@ static void nokiaWriteDataBlock(unsigned char *ucBuf, int iLen)
 {
 
 	nokiaSetMode(MODE_DATA);
-	write(file_spi, ucBuf, iLen);
+	AIOWriteSPI(file_spi, ucBuf, iLen);
 	// Keep a copy in local buffer
 	memcpy(&ucScreen[iScreenOffset], ucBuf, iLen);
 	iScreenOffset += iLen;
@@ -267,54 +261,3 @@ unsigned char temp[84];
 	return 0;
 } /* nokiaFill() */
 
-// Fix the orientation of the font image data
-static void RotateFont90(void)
-{
-unsigned char ucTemp[64];
-int i, j, x, y;
-unsigned char c, c2, ucMask, *s, *d;
-
-	// Rotate the 8x8 font
-	for (i=0; i<256; i++) // fix 8x8 font by rotating it 90 deg clockwise
-	{
-		s = &ucFont[i*8];
-		ucMask = 0x1;
-		for (y=0; y<8; y++)
-		{
-			c = 0;
-			for (x=0; x<8; x++)
-			{
-				c >>= 1;
-				if (s[x] & ucMask) c |= 0x80;
-			}
-			ucMask <<= 1;
-			ucTemp[7-y] = c;
-		}
-		memcpy(s, ucTemp, 8);
-	}
-	// Rotate the 16x32 font
-	for (i=0; i<128; i++) // only 128 characters
-	{
-		for (j=0; j<4; j++)
-		{
-			s = &ucFont[9728 + 12 + (i*64) + (j*16)];
-			d = &ucTemp[j*16];
-			ucMask = 0x1;
-			for (y=0; y<8; y++)
-			{
-				c = c2 = 0;
-				for (x=0; x<8; x++)
-				{
-					c >>= 1;
-					c2 >>= 1;
-					if (s[(x*2)] & ucMask) c |= 0x80;
-					if (s[(x*2)+1] & ucMask) c2 |= 0x80;
-				}
-				ucMask <<= 1;
-				d[7-y] = c;
-				d[15-y] = c2;
-			} // for y
-		} // for j
-		memcpy(&ucFont[9728 + (i*64)], ucTemp, 64);
-	} // for i
-} /* RotateFont90() */
