@@ -19,10 +19,10 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <nokia5110.h>
+#include "nokia5110.h"
 #include <armbianio.h>
 
-extern unsigned char ucFont[];
+extern unsigned char ucFont[], ucSmallFont[];
 static int iScreenOffset; // current write offset of screen data
 static unsigned char ucScreen[504]; // local copy of the image buffer
 static int file_spi = 0;
@@ -205,7 +205,7 @@ int i;
 
 // Draw a string of small (8x8) or large (16x24) characters
 // At the given col+row
-int nokiaWriteString(int x, int y, char *szMsg, int bLarge)
+int nokiaWriteString(int x, int y, char *szMsg, int iSize)
 {
 int i, iLen;
 unsigned char *s;
@@ -213,7 +213,7 @@ unsigned char *s;
 	if (file_spi == 0) return -1; // not initialized
 
 	iLen = strlen(szMsg);
-	if (bLarge) // draw 16x32 font
+	if (iSize == FONT_BIG) // draw 16x32 font
 	{
 		if (iLen+x > 5) iLen = 5-x;
 		if (iLen < 0) return -1;
@@ -228,10 +228,10 @@ unsigned char *s;
 			nokiaWriteDataBlock(s+32, 16);	
 		}
 	}
-	else // draw 8x8 font
+	else if (iSize == FONT_NORMAL) // draw 8x8 font
 	{
-		nokiaSetPosition(x, y);
-		if ((8*iLen) + x > 84) iLen = (84 - x)/8; // can't display it all
+		nokiaSetPosition(x*8, y);
+		if ((8*iLen) + x*8 > 84) iLen = (84 - x)/8; // can't display it all
 		if (iLen < 0)return -1;
 
 		for (i=0; i<iLen; i++)
@@ -239,6 +239,17 @@ unsigned char *s;
 			s = &ucFont[(unsigned char)szMsg[i] * 8];
 			nokiaWriteDataBlock(s, 8); // write character pattern
 		}	
+	}
+	else // small
+	{
+		nokiaSetPosition(x*6, y);
+		if ((6*iLen) + x*6 > 84) iLen = (84 - x)/6;
+		if (iLen < 0) return -1;
+		for (i=0; i<iLen; i++)
+		{
+			s = &ucSmallFont[(unsigned char)szMsg[i]*6];
+			nokiaWriteDataBlock(s, 6);
+		}
 	}
 	return 0;
 } /* nokiaWriteString() */

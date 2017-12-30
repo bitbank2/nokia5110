@@ -7,6 +7,13 @@
 // Copyright (c) 2017 BitBank Software, Inc.
 // Project started 4/8/2017
 //
+typedef enum
+{
+	FONT_NORMAL=0,
+	FONT_BIG,
+	FONT_SMALL
+} FONTSIZE;
+
 // Initialize the library
 int nokiaInit(int iSPIChannel, int iDC, int iReset, int iLED);
 
@@ -20,8 +27,8 @@ int nokiaFill(unsigned char ucPattern);
 void nokiaBacklight(int bOn);
 
 // Write a text string to the display at x (column 0-83) and y (row 0-5)
-// bLarge = 0 - 8x8 font, bLarge = 1 - 16x24 font
-int nokiaWriteString(int x, int y, char *szText, int bLarge);
+// iSize = 0 - 8x8 font, iSize = 1 - 16x24 font, iSize = 2 - 6x8 font
+int nokiaWriteString(int x, int y, char *szText, int iSize);
 
 // Sets a pixel to On (1) or Off (0)
 // Coordinate system is pixels, not text rows (0-83, 0-47)

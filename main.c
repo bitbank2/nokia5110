@@ -16,16 +16,16 @@ int rc;
 int i, x, y;
 
 	// SPI Channel, D/C, RESET, LED
-	rc = nokiaInit(0, 35, 37, 13);
+	rc = nokiaInit(0, 37, 35, 13);
 	if (rc != 0)
 	{
 		printf("Problem initializing nokia5110 library\n");
 		return 0;
 	}
-	nokiaWriteString(14, 1, "Another", 0);
-	nokiaWriteString(14, 2, "BitBank", 0);
-	nokiaWriteString(6, 3, "FOSS tool", 0);
-	nokiaWriteString(10, 4, "4/8/2017", 0);
+	nokiaWriteString(2, 1, "Another", FONT_NORMAL);
+	nokiaWriteString(2, 2, "BitBank", FONT_NORMAL);
+	nokiaWriteString(1, 3, "FOSS tool", FONT_NORMAL);
+	nokiaWriteString(2, 4, "Narrow Font", FONT_SMALL);
 	// draw a box around the whole display
 	for (x=0; x<84; x++)
 	{
