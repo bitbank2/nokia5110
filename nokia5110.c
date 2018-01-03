@@ -58,7 +58,7 @@ int nokiaInit(int iChannel, int iDC, int iReset, int iLED)
         iResetPin = iReset;
         iLEDPin = iLED;
 
-        if (!AIOInit())
+        if (!AIOInit(NULL))
 	{
 		fprintf(stderr, "Error initializing ArmbianIO library\n");
 		return -1;
